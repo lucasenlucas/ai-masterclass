@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Chatbot Builder</title>
+  <script type="module" src="https://esm.run/@google/generative-ai"></script>
+  <style>
+    :root {
+      --user-color: #4a90e2;
+      --ai-color: #e6f0ff;
+      --bg-dark: #0f172a;
+      --bg-light: #1e293b;
+      --text-color: #f1f5f9;
+      --accent: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg-dark);
+      margin: 0;
+      padding: 2rem;
+      color: var(--text-color);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: var(--bg-light);
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 2rem;
+      color: var(--accent);
+    }
+
+    label {
+      font-weight: 600;
+      margin-top: 1.25rem;
+      display: block;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #334155;
+      color: var(--text-color);
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    .color-preview {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid #ccc;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    button {
+      background-color: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-top: 1.5rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #0ea5e9;
+    }
+
+    .chat {
+      margin-top: 1.5rem;
+      background: #0f172a;
+      padding: 1rem;
+      border-radius: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bubble {
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      max-width: 70%;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .user {
+      background: var(--user-color);
+      color: white;
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .ai {
+      background: var(--ai-color);
+      color: #111;
+      margin-right: auto;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .input-row input {
+      flex: 1;
+    }
+
+    .ai-name {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 2rem;
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .logo-preview {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+    }
+
+    #fullscreenChat {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--bg-dark);
+      z-index: 9999;
+      padding: 2rem;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #fullscreenChat h2 {
+      font-size: 1.5rem;
+      margin: 0;
+    }
+
+    #closeBtn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-color);
+      cursor: pointer;
+    }
+
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AI Chatbot Builder</h1>
+    <label>Naam van je AI</label>
+    <input type="text" id="name" placeholder="Bijv. SlimmieBot">
+    <label>Instructies (main prompt)</label>
+    <textarea id="instructions" rows="4" placeholder="Bijv. Leg alles rustig uit alsof je tegen een leerling praat."></textarea>
+    <label>Gemini API-key</label>
+    <input type="text" id="apikey">
+    <label>Upload logo</label>
+    <input type="file" id="logoUpload" accept="image/*">
+    <label>Kleur gebruiker <span class="color-preview" id="userColorPreview"></span></label>
+    <input type="color" id="userColor" value="#4a90e2" oninput="updateColor('userColor')">
+    <label>Kleur AI <span class="color-preview" id="aiColorPreview"></span></label>
+    <input type="color" id="aiColor" value="#e6f0ff" oninput="updateColor('aiColor')">
+    <button onclick="saveConfig()">Sla instellingen op</button>
+    <button onclick="openFullscreenChat()">Open chat in fullscreen</button>
+  </div>
+
+  <div id="fullscreenChat">
+    <button id="closeBtn" onclick="closeFullscreenChat()">❌</button>
+    <div class="ai-name" id="fullscreenHeader"></div>
+    <div class="chat-container">
+      <div class="chat" id="chatFullscreen"></div>
+      <div class="input-row">
+        <input type="text" id="userInputFull" placeholder="Typ je vraag...">
+        <button onclick="sendMessage()">Stuur</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+    const updateColor = (id) => {
+      const value = document.getElementById(id).value;
+      document.getElementById(id + "Preview").style.backgroundColor = value;
+      document.documentElement.style.setProperty(`--${id === "userColor" ? "user" : "ai"}-color`, value);
+    };
+
+    window.updateColor = updateColor;
+
+    window.onload = () => {
+      const config = JSON.parse(localStorage.getItem("gptconfig"));
+      if (!config) return;
+      document.getElementById("name").value = config.name;
+      document.getElementById("instructions").value = config.instructions;
+      document.getElementById("apikey").value = config.apikey;
+      document.getElementById("userColor").value = config.userColor;
+      document.getElementById("aiColor").value = config.aiColor;
+      updateColor("userColor");
+      updateColor("aiColor");
+    };
+
+    function saveConfig() {
+      const file = document.getElementById("logoUpload").files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const config = {
+          name: document.getElementById("name").value,
+          instructions: document.getElementById("instructions").value,
+          apikey: document.getElementById("apikey").value,
+          userColor: document.getElementById("userColor").value,
+          aiColor: document.getElementById("aiColor").value,
+          logoBase64: reader.result || null
+        };
+        localStorage.setItem("gptconfig", JSON.stringify(config));
+        updateColor("userColor");
+        updateColor("aiColor");
+        alert("Instellingen opgeslagen!");
+      };
+      if (file) reader.readAsDataURL(file);
+      else reader.onload();
+    }
+
+    window.saveConfig = saveConfig;
+
+    window.openFullscreenChat = () => {
+      const config = JSON.parse(localStorage.getItem("gptconfig"));
+      if (!config) return;
+      const header = document.getElementById("fullscreenHeader");
+      header.innerHTML = "";
+      if (config.logoBase64) {
+        const img = document.createElement("img");
+        img.src = config.logoBase64;
+        img.className = "logo-preview";
+        header.appendChild(img);
+      }
+      const name = document.createElement("span");
+      name.textContent = config.name + " zegt:";
+      header.appendChild(name);
+      document.documentElement.style.setProperty('--user-color', config.userColor);
+      document.documentElement.style.setProperty('--ai-color', config.aiColor);
+      document.getElementById("fullscreenChat").style.display = "flex";
+    };
+
+    window.closeFullscreenChat = () => {
+      document.getElementById("fullscreenChat").style.display = "none";
+    };
+
+    window.sendMessage = async () => {
+      const input = document.getElementById("userInputFull").value;
+      const config = JSON.parse(localStorage.getItem("gptconfig"));
+      if (!input || !config?.apikey) return;
+      addBubble(input, "user");
+      document.getElementById("userInputFull").value = "";
+      addBubble("...", "ai");
+      try {
+        const genAI = new GoogleGenerativeAI(config.apikey);
+        const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+        const result = await model.generateContent(config.instructions + "\n\nGebruiker: " + input);
+        const response = result.response.text();
+        replaceLastBubble(response);
+      } catch (err) {
+        replaceLastBubble("⚠️ Fout: " + err.message);
+        console.error(err);
+      }
+    };
+
+    function addBubble(text, type) {
+      const div = document.createElement("div");
+      div.className = "bubble " + type;
+      div.textContent = text;
+      document.getElementById("chatFullscreen").appendChild(div);
+    }
+
+    function replaceLastBubble(text) {
+      const bubbles = document.querySelectorAll("#chatFullscreen .bubble.ai");
+      const last = bubbles[bubbles.length - 1];
+      if (last) last.textContent = text;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("userInputFull");
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          window.sendMessage();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
